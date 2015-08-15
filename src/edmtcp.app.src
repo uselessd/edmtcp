@@ -1,0 +1,16 @@
+{application, 'edmtcp',
+ [{description, "Control a DMTCP coordinator from an Erlang port"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {'edmtcp_app', []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.
