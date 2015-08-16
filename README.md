@@ -23,27 +23,32 @@ Build
 Example session
 -----
 
-   Erlang/OTP 18 [erts-7.0] [source] [async-threads:0] [hipe] [kernel-poll:false]
+   $ Erlang/OTP 18 [erts-7.0] [source] [async-threads:0] [hipe] [kernel-poll:false]
 
-   Eshell V7.0  (abort with ^G)
+   $ Eshell V7.0  (abort with ^G)
    
-   1> application:start(edmtcp).
-   ok
-   2> edmtcp:launch("/bin/cat").
-   #Port<0.15755>
-   3> edmtcp:status("/bin/cat").
-   Coordinator:
-      Host: localhost
-      Port: 58546
-   Status...
-      NUM_PEERS=1
-      RUNNING=yes
-      CKPT_INTERVAL=0 (checkpoint manually)
-   ok
-   4> edmtcp:set_interval("/bin/cat", 100).
-   Interval changed to 100
-   ok
-   5> edmtcp:terminate("/bin/cat", quit). %% setting second arg to [] calls --kill
-   ok
-   6> edmtcp:flush_share().
-   ok
+   $ 1> application:start(edmtcp).
+   $ok
+   $ 2> edmtcp:launch("/bin/cat").
+   $#Port<0.15755>
+   $ 3> edmtcp:status("/bin/cat").
+   $Coordinator:
+   $   Host: localhost
+   $   Port: 58546
+   $Status...
+   $   NUM_PEERS=1
+   $   RUNNING=yes
+   $   CKPT_INTERVAL=0 (checkpoint manually)
+   $ok
+   $ 4> edmtcp:set_interval("/bin/cat", 100).
+   $Interval changed to 100
+   $ok
+   $ 5> edmtcp:terminate("/bin/cat", quit). %% setting second arg to [] calls --kill
+   $ok
+   $ 6> edmtcp:flush_share().
+   $ok
+
+License
+-----
+
+MPLv2.
