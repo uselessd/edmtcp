@@ -1,11 +1,16 @@
 -module('edmtcp').
 
-%% functions: start_coordinator, stop_coordinator, checkpoint, restore, rotate_images
--export([]).
+-export([launch/1,
+         checkpoint/1,
+         restore/2,
+         status/1,
+         set_interval/2,
+         terminate/2,
+         flush_share/0]).
 
 -define(PREFIX, "/usr/local/bin/").
+-define(CKPTDIR, "/usr/local/share/edmtcp/").
 
--define(DMTCP_COORDINATOR, ?PREFIX ++ "dmtcp_coordinator").
 -define(DMTCP_LAUNCH, ?PREFIX ++ "dmtcp_launch").
 -define(DMTCP_RESTART, ?PREFIX ++ "dmtcp_restart").
 -define(DMTCP_COMMAND, ?PREFIX ++ "dmtcp_command").
@@ -14,37 +19,59 @@
 %%% API
 %%%===================================================================
 
-%% Control flow:
-%% ...
+launch(ProgramName) ->
+   Port = runnoloop(?DMTCP_LAUNCH, 
+             ["--new-coordinator", 
+              "--ckptdir", ?CKPTDIR ++ ProgramName,
+              "--port-file", ?CKPTDIR ++ filename:basename(ProgramName),
+              ProgramName
+             ]).
+                       
+checkpoint(ProgramName) ->
+   Port = vrun(?DMTCP_COMMAND, 
+                ["--coord-port", get_coord_port(ProgramName),
+                 "--checkpoint"
+                ]).
+restore(ProgramName, CkptFile) ->
+   Port = run(?DMTCP_RESTART, 
+                ["--new-coordinator",
+                 "--port-file", ?CKPTDIR ++ filename:basename(ProgramName),
+                 ?CKPTDIR ++ CkptFile
+                ]).
 
-start_coordinator() ->
-   ok.
-stop_coordinator() ->
-   ok.
-checkpoint() ->
-   ok.
-restore() ->
-   ok.
-rotate_images() ->
-   ok.
+status(ProgramName) ->
+   cmdpp(?DMTCP_COMMAND ++ " --status" ++ " --port " ++ get_coord_port(ProgramName)).
+set_interval(ProgramName, Interval) ->
+   cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ 
+         " --interval " ++ integer_to_list(Interval)).
+terminate(ProgramName, Arg) ->
+   case Arg of
+      [] ->
+         cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ " --kill");
+      quit ->
+         cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ " --quit")
+   end.
+
+flush_share() ->
+   lists:foreach(fun(F) -> ok = file:delete(F) end, filelib:wildcard(?CKPTDIR ++ "*.dmtcp")),
+   lists:foreach(fun(F) -> ok = file:delete(F) end, filelib:wildcard(?CKPTDIR ++ "dmtcp_restart*")).
 
 %%%===================================================================
 %%%  Utility functions for subprocesses as Erlang ports
-%%%  Adapted from nerves-utils
+%%%  Some adapted from nerves-utils
 %%%===================================================================
 
-% Run the specified executable and return ok on success
--spec run(string()) -> {ok, binary()} | {error, non_neg_integer()}.
+get_coord_port(ProgramName) ->
+   {ok, CoordPort} = file:read_file(?CKPTDIR ++ filename:basename(ProgramName)),
+   PortString = binary_to_list(CoordPort),
+   PortString.
+
 run(Executable) ->
     run(Executable, [], []).
 
-% Run an executable with the arguments passed in as a list
--spec run(string(), [string()]) -> {ok, binary()} | {error, non_neg_integer()}.
 run(Executable, Args) ->
     run(Executable, Args, []).
 
-% Run an executable with arguments and send Input to it
--spec run(string(), [string()], iodata()) -> {ok, binary()} | {error, non_neg_integer()}.
 run(Executable, Args, Input) ->
     case os:find_executable(Executable) of
       false ->
@@ -55,10 +82,16 @@ run(Executable, Args, Input) ->
          Port ! {self(), {command, Input}},
          loop_till_done(Port, <<>>)
     end.
+    
+runnoloop(Executable, Args) ->
+    case os:find_executable(Executable) of
+      false ->
+         exit(enoent);
+      FoundExecutable ->
+         open_port({spawn_executable, FoundExecutable},
+                  [exit_status, {args, Args}, stderr_to_stdout])
+    end.
 
-% Run an executable with the arguments passed in as a list and print
-% out the program's output as it comes in.
--spec vrun(string(), [string()]) -> ok | {error, non_neg_integer()}.
 vrun(Executable, Args) ->
     case os:find_executable(Executable) of
       false ->
@@ -69,7 +102,6 @@ vrun(Executable, Args) ->
          verbose_loop_till_done(Port)
     end.
 
--spec loop_till_done(port(), binary()) -> {ok, binary()} | {error, non_neg_integer()}.
 loop_till_done(Port, Data) ->
     receive
       {Port, {data, NewData}} ->
@@ -82,7 +114,6 @@ loop_till_done(Port, Data) ->
          {error, ExitStatus}
     end.
 
--spec verbose_loop_till_done(port()) -> ok | {error, non_neg_integer()}.
 verbose_loop_till_done(Port) ->
     receive
       {Port, {data, NewData}} ->
@@ -95,9 +126,6 @@ verbose_loop_till_done(Port) ->
          {error, ExitStatus}
     end.
 
-% Run a command using os:cmd/1, but pretty print its output
-% in nice lines instead of one really long string.
--spec cmdpp(string()) -> ok.
 cmdpp(CmdLine) ->
     Output = os:cmd(CmdLine),
     lists:foreach(fun(A) -> io:format("~s~n", [A]) end,
