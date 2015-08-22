@@ -25,36 +25,42 @@ launch(ProgramName) ->
               "--ckptdir", ?CKPTDIR ++ ProgramName,
               "--port-file", ?CKPTDIR ++ filename:basename(ProgramName),
               ProgramName
-             ]).
+             ]),
+   ok.
                        
 checkpoint(ProgramName) ->
    Port = vrun(?DMTCP_COMMAND, 
                 ["--coord-port", get_coord_port(ProgramName),
                  "--checkpoint"
-                ]).
+                ]),
+   ok.
 restore(ProgramName, CkptFile) ->
    Port = run(?DMTCP_RESTART, 
                 ["--new-coordinator",
                  "--port-file", ?CKPTDIR ++ filename:basename(ProgramName),
                  ?CKPTDIR ++ CkptFile
-                ]).
+                ]),
+   ok.
 
 status(ProgramName) ->
-   cmdpp(?DMTCP_COMMAND ++ " --status" ++ " --port " ++ get_coord_port(ProgramName)).
+   cmdpp(string:join([?DMTCP_COMMAND, "--status", "--port", get_coord_port(ProgramName)], " ")),
+   ok.
 set_interval(ProgramName, Interval) ->
-   cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ 
-         " --interval " ++ integer_to_list(Interval)).
+   cmdpp(string:join([?DMTCP_COMMAND, "--port", get_coord_port(ProgramName), 
+                      "--interval", integer_to_list(Interval)], " ")),
+   ok.
 terminate(ProgramName, Arg) ->
    case Arg of
       [] ->
-         cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ " --kill");
+         cmdpp(string:join([?DMTCP_COMMAND, "--port", get_coord_port(ProgramName), "--kill"], " "));
       quit ->
-         cmdpp(?DMTCP_COMMAND ++ " --port " ++ get_coord_port(ProgramName) ++ " --quit")
+         cmdpp(string:join([?DMTCP_COMMAND, "--port", get_coord_port(ProgramName), "--quit"], " "))
    end.
 
 flush_share() ->
    lists:foreach(fun(F) -> ok = file:delete(F) end, filelib:wildcard(?CKPTDIR ++ "*.dmtcp")),
-   lists:foreach(fun(F) -> ok = file:delete(F) end, filelib:wildcard(?CKPTDIR ++ "dmtcp_restart*")).
+   lists:foreach(fun(F) -> ok = file:delete(F) end, filelib:wildcard(?CKPTDIR ++ "dmtcp_restart*")),
+   ok.
 
 %%%===================================================================
 %%%  Utility functions for subprocesses as Erlang ports
